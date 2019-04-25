@@ -295,7 +295,7 @@ def main():
             img[i][j]=imgColor
 
     rawimg = Image.fromarray(img, 'RGB')
-    rawimg.save(sys.argv[1]+'_test.png')
+    rawimg.save(sys.argv[1]+'.png')
     
 if __name__=="__main__":
     main()
