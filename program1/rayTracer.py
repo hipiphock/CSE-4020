@@ -84,10 +84,7 @@ class Box:
         self.shader = shader
 
     def intersect(self, rayPoint, rayVec):
-        tx0, tx1 = np.inf, np.inf
-        ty0, ty1 = np.inf, np.inf
-        tz0, tz1 = np.inf, np.inf
-
+        tx0, tx1, ty0, ty1, tz0, tz1 = np.inf, np.inf, np.inf, np.inf, np.inf, np.inf
         vx, vy, vz = -1, -1, -1
 
         if rayVec[0] != 0:
@@ -272,8 +269,7 @@ def main():
     # make image
     for i in np.arange(imgSize[1]):
         for j in np.arange(imgSize[0]):
-            color = np.array([0, 0, 0])
-
+            imgColor = np.array([0, 0, 0])
             # get ray
             rayPoint, rayVec = camera.getRay(i, j)
             # find intersect
@@ -281,24 +277,23 @@ def main():
             # case: there is intersection
             if tmin < np.inf:
                 # handle shadows
-                color = np.array([0., 0., 0.])
+                imgColor = np.array([0., 0., 0.])
                 normal = normalize(hitNormal)
                 V = normalize(-rayVec)
                 for light in lightList:
                     # Lambertian
-                    shadowPoint = hitPoint
-                    shadowNormal = normalize(light.position - hitPoint)
+                    lightVec = normalize(light.position - hitPoint)
                     # Phong
-                    h = normalize(shadowNormal + V)
-                    tmin_shadow, hitPoint_shadow, hitNormal_shadow, obj_shadow = checkIntersect(shadowPoint, shadowNormal, objSphereList, objBoxList)
-                    if tmin_shadow == np.inf:
-                        color+=hitObject.shader.diffuseColor*light.intensity*max([0,shadowNormal@normal])
-                        color+=hitObject.shader.specularColor*light.intensity*(max([0,h@normal])**hitObject.shader.exponent)
-            color = 255 * color
+                    h = normalize(lightVec + V)
+                    t_shadow, hp_s, hn_s, obj_s = checkIntersect(hitPoint, lightVec, objSphereList, objBoxList)
+                    if t_shadow == np.inf:
+                        imgColor += hitObject.shader.diffuseColor * light.intensity * max([0, lightVec@normal])
+                        imgColor += hitObject.shader.specularColor * light.intensity * (max([0, h@normal])**hitObject.shader.exponent)
+            imgColor = 255 * imgColor
             for idx in range(3):
-                if(color[idx] > 255):
-                    color[idx] = 255
-            img[i][j] = color
+                if(imgColor[idx] > 255):
+                    imgColor[idx] = 255
+            img[i][j] = imgColor
 
     rawimg = Image.fromarray(img, 'RGB')
     #rawimg.save('out.png')
