@@ -54,9 +54,9 @@ class Sphere:
         self.radius = radius
 
     # returns t, hitPoint, hitNormal
-    def intersect(self, rayPoint, rayVec, tmin, tmax):
+    def intersect(self, rayPoint, rayVec):
         b = np.dot(rayPoint - self.center, rayVec)
-        c = np.dot(rayPoint - self.center) * np.dot(rayPoint - self.center) - self.radius * self.radius
+        c = np.dot(rayPoint - self.center, rayPoint - self.center) - self.radius * self.radius
         insideRoot = b * b - c
         if insideRoot < 0:
             return np.inf
@@ -82,7 +82,7 @@ class Box:
         self.minPt = minPt
         self.maxPt = maxPt
 
-    def intersect(self, rayPoint, rayVec, tmin, tmax):
+    def intersect(self, rayPoint, rayVec):
         tx0 = np.inf
         tx1 = np.inf
         ty0 = np.inf
@@ -168,8 +168,8 @@ def intersect_handler(rayPoint, rayVec, obj_list):
     hitNormal = np.array([0., 0., 0.])
     list_idx = 0
 
-    for idx, obj in enumerate(obj_list):
-        t, hp, hn = obj.intersect(rayPoint, rayVec, 0, float('inf'))
+    for idx, object in enumerate(obj_list):
+        t, hp, hn = object.intersect(rayPoint, rayVec)
         if t < tmin:
             tmin = t
             hitPoint = hp
@@ -236,8 +236,7 @@ def main():
             print('minPt', minPt)
             print('maxPt', maxPt)
             box = Box(minPt, maxPt)
-            obj_list.append(box)
-            
+            obj_list.append(box)            
         elif c.get('type') == 'Sphere':
             center = np.array(c.findtext('center').split()).astype(np.float)
             radius = float(c.findtext('radius'))
@@ -245,9 +244,6 @@ def main():
             print('radius', radius)
             sphere = Sphere(center, radius)
             obj_list.append(sphere)
-        else:
-            print("ERROR")
-            pass
 
     light_list = []
     # get light
@@ -270,6 +266,7 @@ def main():
     for i in np.arange(imgSize[1]):
         for j in np.arange(imgSize[0]):
             # get ray
+            color = np.array([0, 0, 0])
             rayPoint, rayVec = camera.getRay(i, j)
             # find intersect
             tmin, hitPoint, hitNormal, list_idx = intersect_handler(rayPoint, rayVec, obj_list)
