@@ -288,14 +288,17 @@ def main():
                         imgColor+=hitObject.shader.diffuseColor*light.intensity*max([0,I@normal])
                         imgColor+=hitObject.shader.specularColor*light.intensity*(max([0,h@normal])**hitObject.shader.exponent)
         
-            imgColor=255*imgColor
-            for idx in range(3):
-                if imgColor[idx]>255:
-                    imgColor[idx]=255
-            img[i][j]=imgColor
+            #imgColor=255*imgColor
+            #for idx in range(3):
+            #    if imgColor[idx]>255:
+            #        imgColor[idx]=255
+            #img[i][j]=imgColor.gammaCorrect(2.2)
+            color = Color(imgColor[0], imgColor[1], imgColor[2])
+            color.gammaCorrect(2.2)
+            img[i][j] = color.toUINT8()
 
     rawimg = Image.fromarray(img, 'RGB')
-    rawimg.save(sys.argv[1]+'.png')
+    rawimg.save(sys.argv[1]+'test.png')
     
 if __name__=="__main__":
     main()
