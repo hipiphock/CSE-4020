@@ -31,7 +31,7 @@ class Color:
 class Camera:
     def __init__(self, viewPoint, direction, up, projDist, viewWidth, viewHeight, imgSize):
         self.viewPoint = viewPoint
-        self.direction = normalize(direction)
+        self.direction = -normalize(direction)
         self.u = normalize(np.cross(up, direction))
         self.v = normalize(np.cross(direction, self.u))
 
@@ -46,7 +46,7 @@ class Camera:
         vc = -i + self.imgHeight / 2
         wc = (self.viewDist / self.viewWidth) * self.imgWidth
         s = self.viewPoint + self.u * uc + self.v * vc - self.direction * wc
-        return self.viewPoint, normalize(s - self.viewPoint)
+        return self.viewPoint, s - self.viewPoint
 
 class Sphere:
     def __init__(self, center, radius, shader):
