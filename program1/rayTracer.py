@@ -31,7 +31,7 @@ class Color:
 class Camera:
     def __init__(self, viewPoint, direction, up, projDist, viewWidth, viewHeight, imgSize):
         self.viewPoint = viewPoint
-        self.direction = -normalize(direction)
+        self.direction = normalize(-direction)
         self.u = normalize(np.cross(up, direction))
         self.v = normalize(np.cross(direction, self.u))
 
@@ -56,13 +56,15 @@ class Sphere:
 
     # returns t, hitPoint, hitNormal
     def intersect(self, rayPoint, rayVec):
+        hitPoint = np.array([0., 0., 0.])
+        hitNormal = np.array([0., 0., 0.])
         b = np.dot(rayPoint - self.center, rayVec)
         c = np.dot(rayPoint - self.center, rayPoint - self.center) - self.radius * self.radius
         insideRoot = b * b - c
         if insideRoot < 0:
-            return np.inf
+            return np.inf, hitPoint, hitNormal
         elif insideRoot == 0:
-            return -b
+            return -b, hitPoint, hitNormal
         else:
             t1 = -b - np.sqrt(b * b - c)
             t2 = -b + np.sqrt(b * b - c)
@@ -85,12 +87,9 @@ class Box:
         self.shader = shader
 
     def intersect(self, rayPoint, rayVec):
-        tx0 = np.inf
-        tx1 = np.inf
-        ty0 = np.inf
-        ty1 = np.inf
-        tz0 = np.inf
-        tz1 = np.inf
+        tx0, tx1 = np.inf, np.inf
+        ty0, ty1 = np.inf, np.inf
+        tz0, tz1 = np.inf, np.inf
 
         vx, vy, vz = -1, -1, -1
 
@@ -169,7 +168,6 @@ def checkIntersect(rayPoint, rayVec, objSphereList, objBoxList):
 
     for object in objSphereList:
         t, hp, hn = object.intersect(rayPoint, rayVec)
-        print('alksdjfalsfdaldsfja;lfd')
         if t < tmin:
             tmin = t
             hitPoint = hp
@@ -286,7 +284,8 @@ def main():
             if tmin < np.inf:
                 # handle shadows
                 color = np.array([0., 0., 0.])
-                for light in light_list:
+                normal = normalize(hitNormal)
+                for light in lightList:
                     # Lambertian
                     shadowPoint = hitPoint
                     shadowNormal = normalize(light.position - hitPoint)
@@ -294,7 +293,7 @@ def main():
                     h = normalize(shadowNormal - rayVec)
                     tmin_shadow, hitPoint_shadow, hitNormal_shadow, obj_shadow = checkIntersect(shadowPoint, shadowNormal, objSphereList, objBoxList)
                     if tmin_shadow == np.inf:
-                        color+=hitObject.shader.diffuseColor*light.intensity*max([0,I@normal])
+                        color+=hitObject.shader.diffuseColor*light.intensity*max([0,shadowNormal@normal])
                         color+=hitObject.shader.specularColor*light.intensity*(max([0,h@normal])**hitObject.shader.exponent)
             color = 255 * color
             for idx in range(3):
