@@ -285,12 +285,13 @@ def main():
                 # handle shadows
                 color = np.array([0., 0., 0.])
                 normal = normalize(hitNormal)
+                V = normalize(-rayVec)
                 for light in lightList:
                     # Lambertian
                     shadowPoint = hitPoint
                     shadowNormal = normalize(light.position - hitPoint)
                     # Phong
-                    h = normalize(shadowNormal - rayVec)
+                    h = normalize(shadowNormal + V)
                     tmin_shadow, hitPoint_shadow, hitNormal_shadow, obj_shadow = checkIntersect(shadowPoint, shadowNormal, objSphereList, objBoxList)
                     if tmin_shadow == np.inf:
                         color+=hitObject.shader.diffuseColor*light.intensity*max([0,shadowNormal@normal])
