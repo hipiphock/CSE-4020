@@ -161,7 +161,24 @@ class Light:
     def __init__(self, position, intensity):
         self.position = position
         self.intensity = intensity
-        
+
+def intersect_handler(rayPoint, rayVec, obj_list):
+    tmin = np.inf
+    hitPoint = np.array([0., 0., 0.])
+    hitNormal = np.array([0., 0., 0.])
+    list_idx = 0
+
+    for idx, obj in enumerate(obj_list):
+        t, hp, hn = obj.intersect(rayPoint, rayVec, 0, float('inf'))
+        if t < tmin:
+            tmin = t
+            hitPoint = hp
+            hitNormal = hn
+            list_idx = idx
+    
+    if tmin == np.inf:
+        list_idx = -1
+    return tmin, hitPoint, hitNormal, list_idx
 
 def main():
 
@@ -197,7 +214,7 @@ def main():
         print('viewHeight', viewHeight)
     camera = Camera(viewPoint, viewDir, viewUp, projDistance, viewWidth, viewHeight, imgSize)
 
-    obj_shader = []
+    shader_list = []
     # get shader
     for c in root.findall('shader'):
         diffuseColor = np.array(c.findtext('diffuseColor').split()).astype(np.float)
@@ -208,9 +225,9 @@ def main():
         exponent = c.findtext('exponent')
         print('exponent', exponent)
         shader = Shader(diffuseColor, specularColor, exponent)
-        obj_shader.append(shader)
+        shader_list.append(shader)
 
-    obj_surface = []
+    obj_list = []
     # get surface
     for c in root.findall('surface'):
         if c.get('type') == 'Box':
@@ -219,7 +236,7 @@ def main():
             print('minPt', minPt)
             print('maxPt', maxPt)
             box = Box(minPt, maxPt)
-            obj_surface.append(box)
+            obj_list.append(box)
             
         elif c.get('type') == 'Sphere':
             center = np.array(c.findtext('center').split()).astype(np.float)
@@ -227,7 +244,7 @@ def main():
             print('center', center)
             print('radius', radius)
             sphere = Sphere(center, radius)
-            obj_surface.append(sphere)
+            obj_list.append(sphere)
         else:
             print("ERROR")
             pass
@@ -255,38 +272,21 @@ def main():
             # get ray
             rayPoint, rayVec = camera.getRay(i, j)
             # find intersect
-            tmin = np.inf
-            intidx = 0
-            hitPoint = np.array([0, 0, 0])
-            hitNormal = np.array([0, 0, 0])
-            color = np.array([0, 0, 0])
-            for index, obj in enumerate(obj_surface):
-                t, hp, hn = obj.intersect(rayPoint, rayVec, 0, float('inf'))
-                if t < tmin:
-                    tmin = t
-                    hitPoint = hp
-                    hitNormal = hn
-                    intidx = index
+            tmin, hitPoint, hitNormal, list_idx = intersect_handler(rayPoint, rayVec, obj_list)
+            # case: there is intersection
             if tmin < np.inf:
-
                 # handle shadows
+                color = np.array([0., 0., 0.])
                 for light in light_list:
                     # Lambertian
-                    I = normalize(light.position - hitPoint)
                     shadowPoint = hitPoint
-                    shadowNormal = I
+                    shadowNormal = normalize(light.position - hitPoint)
                     # Phong
-                    h = normalize(I + rayVec)
-                    tShadow = np.inf
-                    shadowIdx = 0
-                    for index, obj in enumerate(obj_surface):
-                        t, hp, hn = obj.intersect(shadowPoint, shadowNormal, 0, float('inf'))
-                        if t < tShadow:
-                            tShadow = t
-                            shadowIdx = index
-                    if tShadow == np.inf:
-                        color += shader[shadowIdx].diffuseColor * light.intensity * max([0, I @ hitNormal])
-                        color += shader[shadowIdx].specularColor * light.intensity * (max([0, h @ hitNormal])**shader[shadowIdx].exponent)
+                    h = normalize(shadowNormal - rayVec)
+                    tmin_shadow, hitPoint_shadow, hitNormal_shadow, list_idx_shadow = intersect_handler(shadowPoint, shadowNormal, obj_list)
+                    if tmin_shadow == np.inf:
+                        color += shader[list_idx_shadow].diffuseColor * light.intensity * max([0, I @ hitNormal])
+                        color += shader[list_idx_shadow].specularColor * light.intensity * (max([0, h @ hitNormal])**shader[list_idx_shadow].exponent)
             color = 255 * color
             for idx in range(3):
                 if(color[idx] > 255):
