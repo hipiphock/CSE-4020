@@ -84,6 +84,8 @@ class Box:
         self.shader = shader
 
     def intersect(self, rayPoint, rayVec):
+        rayVec = normalize(rayVec)
+
         tx0, tx1, ty0, ty1, tz0, tz1 = np.inf, np.inf, np.inf, np.inf, np.inf, np.inf
         vx, vy, vz = -1, -1, -1
 
@@ -133,12 +135,13 @@ class Box:
         if tmaxarr[tmaxidx] > tminarr[tminidx]:
             t0 = tminarr[tminidx]
             if tminidx == 0:
-                hitNormal = np.array([vx, 0, 0])
+                normal = np.array([vx, 0, 0])
             elif tminidx == 1:
-                hitNormal = np.array([0, vy, 0])
+                normal = np.array([0, vy, 0])
             elif tminidx == 2:
-                hitNormal = np.array([0, 0, vz])
+                normal = np.array([0, 0, vz])
             hitPoint = rayPoint + t0 * rayVec
+            hitNormal = normal
         if t0 < 0:
             t0 = np.inf
         return t0, hitPoint, hitNormal
