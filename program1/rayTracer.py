@@ -32,8 +32,8 @@ class Camera:
     def __init__(self, viewPoint, direction, up, projDist, viewWidth, viewHeight, imgSize):
         self.viewPoint = viewPoint
         self.direction = normalize(-direction)
-        self.u = normalize(np.cross(up, direction))
-        self.v = normalize(np.cross(direction, self.u))
+        self.u = normalize(np.cross(up, self.direction))
+        self.v = normalize(np.cross(self.direction, self.u))
 
         self.viewDist = projDist
         self.viewWidth = viewWidth
@@ -272,11 +272,12 @@ def main():
     img = np.zeros((imgSize[1], imgSize[0], channels), dtype=np.uint8)
     img[:,:]=0
     
-    # replace the code block below!
+    # make image
     for i in np.arange(imgSize[1]):
         for j in np.arange(imgSize[0]):
-            # get ray
             color = np.array([0, 0, 0])
+
+            # get ray
             rayPoint, rayVec = camera.getRay(i, j)
             # find intersect
             tmin, hitPoint, hitNormal, hitObject = checkIntersect(rayPoint, rayVec, objSphereList, objBoxList)
