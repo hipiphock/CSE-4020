@@ -74,11 +74,10 @@ class Sphere:
     def intersect(self, rayPoint, rayVec, minD, maxD):
         p=rayPoint-self.center
         d=normalize(rayVec)
-        checkD=(d@p)**2-p@p+self.radius**2
-        
-        hitPoint, hitVector=np.array([0.,0.,0.,0.,0.,0.])
+        checkD=(d@p)**2-p@p+self.radius**2 
         t0=np.inf
-
+        hitPoint = np.array([0., 0., 0.])
+        hitVector = np.array([0., 0., 0.])
         if checkD>=0:
             t0=-d@p-np.sqrt(checkD)
             t1=-d@p+np.sqrt(checkD)
@@ -140,7 +139,8 @@ class Box:
         if tz1<tmaxs[tmaxIdx]:
             tmaxIdx=2
 
-        hitPoint, hitVector
+        hitPoint = np.array([0., 0., 0.])
+        hitVector = np.array([0., 0., 0.])
         t0=np.inf
         if tmaxs[tmaxIdx]>tmins[tminIdx]:
             t0=tmins[tminIdx]
@@ -158,16 +158,17 @@ class Box:
         return hitPoint, hitVector, t0
         
 
-def checkIntersect(self, rayPoint, rayVec, sphereList, boxList):
+def checkIntersect(rayPoint, rayVec, SphereList, BoxList):
     tmin=np.inf
-    hitPoint, hitVector
-    for object in self.sphereList:
+    hitPoint = np.array([0., 0., 0.])
+    hitVector = np.array([0., 0., 0.])
+    for object in SphereList:
         hp, hv, t = object.intersect(rayPoint, rayVec, 0, float('inf'))
         if t<tmin:
             tmin=t
             hitPoint, hitVector = hp, hv
             hitObject=object
-    for object in self.boxList:
+    for object in BoxList:
         hp, hv, t = object.intersect(rayPoint, rayVec, 0, float('inf'))
         if t<tmin:
             tmin=t
@@ -267,10 +268,10 @@ def main():
     img[:,:]=0
 
     for i in np.arange(imgSize[1]):
-        for j in np.arange(imgSize[0]): 
+        for j in np.arange(imgSize[0]):
+            imgColor=np.array([0,0,0])
             # get ray
             rayPoint, rayVec = camera.getRay(i,j)
-            imgColor=np.array([0,0,0])
             tmin, hitPoint, hitVector, hitObject = checkIntersect(rayPoint, rayVec, sphereList, boxList)
             # case: intersection
             if tmin < np.inf:
@@ -282,7 +283,7 @@ def main():
                     I = normalize(light.position-hitPoint)
                     #for Phong
                     h = normalize(I + V)
-                    tShadow, hitShadow, objShadow = checkIntersect(hitPoint, I, sphereList, boxList)
+                    tShadow, hps, hvs, objShadow = checkIntersect(hitPoint, I, sphereList, boxList)
                     if tShadow==np.inf:
                         imgColor+=hitObject.shader.diffuseColor*light.intensity*max([0,I@normal])
                         imgColor+=hitObject.shader.specularColor*light.intensity*(max([0,h@normal])**hitObject.shader.exponent)
@@ -293,9 +294,8 @@ def main():
                     imgColor[idx]=255
             img[i][j]=imgColor
 
-    rawimg = Image.fromarray(scene.img, 'RGB')
-    rawimg.save('out.png')
-    #rawimg.save(sys.argv[1]+'.png')
+    rawimg = Image.fromarray(img, 'RGB')
+    rawimg.save(sys.argv[1]+'_test.png')
     
 if __name__=="__main__":
     main()
