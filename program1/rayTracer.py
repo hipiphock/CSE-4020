@@ -63,22 +63,19 @@ class Sphere:
         insideRoot = b * b - c
         if insideRoot < 0:
             return np.inf, hitPoint, hitNormal
-        elif insideRoot == 0:
-            return -b, hitPoint, hitNormal
         else:
-            t1 = -b - np.sqrt(b * b - c)
-            t2 = -b + np.sqrt(b * b - c)
+            t1 = -b - np.sqrt(insideRoot)
+            t2 = -b + np.sqrt(insideRoot)
             # return t1 if t1 * t1 < t2 * t2 else t2
             if t1 * t1 < t2 * t2:
                 t = t1
                 hitPoint = rayPoint + t * rayVec
                 hitNormal = hitPoint - self.center
-                return t, hitPoint, hitNormal
             else:
                 t = t2
                 hitPoint = rayPoint + t * rayVec
                 hitNormal = hitPoint - self.center
-                return t, hitPoint, hitNormal
+            return t, hitPoint, hitNormal
 
 class Box:
     def __init__(self, minPt, maxPt, shader):
@@ -151,7 +148,7 @@ class Box:
 
 
 class Shader:
-    def __init__(self, diffuseColor, specularColor = np.array([0., 0., 0.]), exponent = 0):
+    def __init__(self, diffuseColor, specularColor = np.array([0., 0., 0.]), exponent = 50):
         self.diffuseColor = diffuseColor
         self.specularColor = specularColor
         self.exponent = exponent
