@@ -33,7 +33,7 @@ class Camera:
         self.viewPoint = viewPoint
         self.direction = normalize(direction)
         self.u = normalize(np.cross(up, direction))
-        self.v = normalize(np.cross(direction, u))
+        self.v = normalize(np.cross(direction, self.u))
 
         self.viewDist = projDist
         self.viewWidth = viewWidth
@@ -46,7 +46,7 @@ class Camera:
         vc = -i + self.imgHeight / 2
         wc = (self.viewDist / self.viewWidth) * self.imgWidth
         s = self.viewPoint + self.u * uc + self.v * vc - self.direction * wc
-        return viewPoint, normalize(s - viewPoint)
+        return self.viewPoint, normalize(s - self.viewPoint)
 
 class Sphere:
     def __init__(self, center, radius):
@@ -120,14 +120,14 @@ class Box:
             tz1 = tmp
             vz = 1
 
-        tminarr = np.arr([tx0, ty0, tz0])
+        tminarr = np.array([tx0, ty0, tz0])
         tminidx = 0
         if ty0 > tminarr[tminidx]:
             tminidx = 1
         if tz0 > tminarr[tminidx]:
             tminidx = 2
         
-        tmaxarr = np.arr([tx1, ty1, tz1])
+        tmaxarr = np.array([tx1, ty1, tz1])
         tmaxidx = 0
         if ty1 > tmaxarr[tmaxidx]:
             tmaxidx = 1
@@ -268,7 +268,8 @@ def main():
                     hitNormal = hn
                     intidx = index
             if tmin < np.inf:
-                # handle light @ shadows
+
+                # handle shadows
                 for light in light_list:
                     # Lambertian
                     I = normalize(light.position - hitPoint)
