@@ -9,7 +9,8 @@ import pdb  # use pdb.set_trace() for debugging
 import code # or use code.interact(local=dict(globals(), **locals()))  for debugging.
 import xml.etree.ElementTree as ET
 import numpy as np
-from PIL import Image
+import math
+from PIL import Image 
 
 def normalize(vector):
     size = np.sqrt(np.sum(vector**2))
@@ -28,168 +29,164 @@ class Color:
     def toUINT8(self):
         return (np.clip(self.color, 0,1)*255).astype(np.uint8)
 
-class Camera:
-    def __init__(self, viewPoint, direction, up, projDist, viewWidth, viewHeight, imgSize):
-        self.viewPoint = viewPoint
-        self.direction = normalize(-direction)
-        self.u = normalize(np.cross(up, self.direction))
-        self.v = normalize(np.cross(self.direction, self.u))
+class Shader:
+    def __init__(self, diffuseColor, specularColor=np.array([0.,0.,0.]), exponent=0):
+        self.diffuseColor=diffuseColor
+        self.specularColor=specularColor
+        self.exponent=exponent
 
-        self.viewDist = projDist
-        self.viewWidth = viewWidth
-        self.viewHeight = viewHeight
-        self.imgWidth = imgSize[0]
-        self.imgHeight = imgSize[1]
+class Light:
+    def __init__(self, position, intensity):
+        self.position=position
+        self.intensity=intensity
 
-    def getRay(self, i, j):
-        uc = j - self.imgWidth / 2
-        vc = -i + self.imgHeight / 2
-        wc = (self.viewDist / self.viewWidth) * self.imgWidth
-        s = self.viewPoint + self.u * uc + self.v * vc - self.direction * wc
-        return self.viewPoint, s - self.viewPoint
+class Camera:              
+    def __init__(self, point, direction, up, projDist, viewW, viewH, imgSize):
+        self.e=point
+        self.w=-direction/np.sqrt(np.sum(direction**2))
+        self.u=np.cross(up,self.w)
+        self.u=self.u/np.sqrt(np.sum(self.u**2))
+        self.v=np.cross(self.w,self.u)
+        self.v=self.v/np.sqrt(np.sum(self.v**2))
+
+        # viewD = projD. this project assume projNormal = =viewDir
+        self.viewD=projDist
+        self.viewW=viewW
+        self.viewH=viewH
+        self.imgW=imgSize[0]
+        self.imgH=imgSize[1]
+
+    def getRay(self, ix, iy):
+        uc=iy-self.imgW/2
+        vc=-ix+self.imgH/2
+        wc=(self.viewD/self.viewW)*self.imgW
+        s=self.e+uc*self.u+vc*self.v-wc*self.w
+        rayPoint=self.e
+        rayVec=s-self.e
+        return rayPoint, rayVec
 
 class Sphere:
     def __init__(self, center, radius, shader):
-        self.center = center
-        self.radius = radius
-        self.shader = shader
+        self.center=center
+        self.radius=radius
+        self.shader=shader
 
-    # returns t, hitPoint, hitNormal
-    def intersect(self, rayPoint, rayVec):
-        hitPoint = np.array([0., 0., 0.])
-        hitNormal = np.array([0., 0., 0.])
-        b = np.dot(rayPoint - self.center, rayVec)
-        c = np.dot(rayPoint - self.center, rayPoint - self.center) - self.radius * self.radius
-        insideRoot = b * b - c
-        if insideRoot < 0:
-            return np.inf, hitPoint, hitNormal
-        else:
-            t1 = -b - np.sqrt(insideRoot)
-            t2 = -b + np.sqrt(insideRoot)
-            # return t1 if t1 * t1 < t2 * t2 else t2
-            if t1 * t1 < t2 * t2:
-                t = t1
-                hitPoint = rayPoint + t * rayVec
-                hitNormal = hitPoint - self.center
-            else:
-                t = t2
-                hitPoint = rayPoint + t * rayVec
-                hitNormal = hitPoint - self.center
-            return t, hitPoint, hitNormal
+    def intersect(self, rayPoint, rayVec, minD, maxD):
+        p=rayPoint-self.center
+        d=normalize(rayVec)
+        checkD=(d@p)**2-p@p+self.radius**2
+        
+        hitPoint, hitVector=np.array([0.,0.,0.,0.,0.,0.])
+        t0=np.inf
+
+        if checkD>=0:
+            t0=-d@p-np.sqrt(checkD)
+            t1=-d@p+np.sqrt(checkD)
+            hitPoint=rayPoint+t0*d
+            hitVector=rayPoint+t0*d-self.center
+            if t0<0:
+                t0=np.inf
+        return hitPoint, hitVector, t0
 
 class Box:
     def __init__(self, minPt, maxPt, shader):
-        self.minPt = minPt
-        self.maxPt = maxPt
-        self.shader = shader
-
-    def intersect(self, rayPoint, rayVec):
-        rayVec = normalize(rayVec)
+        self.minPt=minPt
+        self.maxPt=maxPt
+        self.shader=shader
+    def intersect(self, rayPoint, rayVec, minD, maxD):
+        p=rayPoint
+        d=normalize(rayVec)
 
         tx0, tx1, ty0, ty1, tz0, tz1 = np.inf, np.inf, np.inf, np.inf, np.inf, np.inf
         vx, vy, vz = -1, -1, -1
 
-        if rayVec[0] != 0:
-            tx0 = (self.minPt[0] - rayPoint[0]) / rayVec[0]
-            tx1 = (self.maxPt[0] - rayPoint[0]) / rayVec[0]
-        if rayVec[1] != 0:
-            ty0 = (self.minPt[1] - rayPoint[1]) / rayVec[1]
-            ty1 = (self.maxPt[1] - rayPoint[1]) / rayVec[1]
-        if rayVec[2] != 0:
-            ty0 = (self.minPt[2] - rayPoint[2]) / rayVec[2]
-            ty1 = (self.maxPt[2] - rayPoint[2]) / rayVec[2]
+        if d[0]!=0:
+            tx0=(self.minPt[0]-p[0])/d[0]
+            tx1=(self.maxPt[0]-p[0])/d[0]
+        if d[1]!=0:
+            ty0=(self.minPt[1]-p[1])/d[1]
+            ty1=(self.maxPt[1]-p[1])/d[1]
+        if d[2]!=0:
+            tz0=(self.minPt[2]-p[2])/d[2]
+            tz1=(self.maxPt[2]-p[2])/d[2]
+
+        if tx0>tx1:
+            tmp=tx0
+            tx0=tx1
+            tx1=tmp
+            vx=1
+        if ty0>ty1:
+            tmp=ty0
+            ty0=ty1
+            ty1=tmp
+            vy=1
+        if tz0>tz1:
+            tmp=tz0
+            tz0=tz1
+            tz1=tmp
+            vz=1
+
+        tmins=np.array([tx0,ty0,tz0])
+        tminIdx=0
+        if ty0>tmins[tminIdx]:
+            tminIdx=1
+        if tz0>tmins[tminIdx]:
+            tminIdx=2
+
+        tmaxs=np.array([tx1,ty1,tz1])
+        tmaxIdx=0
+        if ty1<tmaxs[tmaxIdx]:
+            tmaxIdx=1
+        if tz1<tmaxs[tmaxIdx]:
+            tmaxIdx=2
+
+        hitPoint, hitVector
+        t0=np.inf
+        if tmaxs[tmaxIdx]>tmins[tminIdx]:
+            t0=tmins[tminIdx]
+            if tminIdx==0:
+                normal=np.array([vx,0,0])
+            elif tminIdx==1:
+                normal=np.array([0,vy,0])
+            elif tminIdx==2:
+                normal=np.array([0,0,vz])
+                
+            hitPoint=p+t0*d
+            hitVector=normal
+        if t0<0:
+            t0=np.inf
+        return hitPoint, hitVector, t0
         
-        if tx0 > tx1:
-            tmp = tx0
-            tx0 = tx1
-            tx1 = tmp
-            vx = 1
-        if ty0 > ty1:
-            tmp = ty0
-            ty0 = ty1
-            ty1 = tmp
-            vy = 1
-        if tz0 > tz1:
-            tmp = tz0
-            tz0 = tz1
-            tz1 = tmp
-            vz = 1
 
-        tminarr = np.array([tx0, ty0, tz0])
-        tminidx = 0
-        if ty0 > tminarr[tminidx]:
-            tminidx = 1
-        if tz0 > tminarr[tminidx]:
-            tminidx = 2
-        
-        tmaxarr = np.array([tx1, ty1, tz1])
-        tmaxidx = 0
-        if ty1 > tmaxarr[tmaxidx]:
-            tmaxidx = 1
-        if tz1 > tmaxarr[tmaxidx]:
-            tmaxidx = 2
-
-        t0 = np.inf
-        hitPoint = np.array([0, 0, 0])
-        hitNormal = np.array([0, 0, 0])
-        if tmaxarr[tmaxidx] > tminarr[tminidx]:
-            t0 = tminarr[tminidx]
-            if tminidx == 0:
-                normal = np.array([vx, 0, 0])
-            elif tminidx == 1:
-                normal = np.array([0, vy, 0])
-            elif tminidx == 2:
-                normal = np.array([0, 0, vz])
-            hitPoint = rayPoint + t0 * rayVec
-            hitNormal = normal
-        if t0 < 0:
-            t0 = np.inf
-        return t0, hitPoint, hitNormal
-
-
-class Shader:
-    def __init__(self, diffuseColor, specularColor = np.array([0., 0., 0.]), exponent = 50):
-        self.diffuseColor = diffuseColor
-        self.specularColor = specularColor
-        self.exponent = exponent
-
-class Light:
-    def __init__(self, position, intensity):
-        self.position = position
-        self.intensity = intensity
-
-def checkIntersect(rayPoint, rayVec, objSphereList, objBoxList):
-    tmin = np.inf
-    hitPoint = np.array([0., 0., 0.])
-    hitNormal = np.array([0., 0., 0.])
-
-    for object in objSphereList:
-        t, hp, hn = object.intersect(rayPoint, rayVec)
-        if t < tmin:
-            tmin = t
-            hitPoint = hp
-            hitNormal = hn
+def checkIntersect(self, rayPoint, rayVec, sphereList, boxList):
+    tmin=np.inf
+    hitPoint, hitVector
+    for object in self.sphereList:
+        hp, hv, t = object.intersect(rayPoint, rayVec, 0, float('inf'))
+        if t<tmin:
+            tmin=t
+            hitPoint, hitVector = hp, hv
             hitObject=object
-            
-    for object in objBoxList:
-        t, hp, hn = object.intersect(rayPoint, rayVec)
-        if t < tmin:
-            tmin = t
-            hitPoint = hp
-            hitNormal = hn
+    for object in self.boxList:
+        hp, hv, t = object.intersect(rayPoint, rayVec, 0, float('inf'))
+        if t<tmin:
+            tmin=t
+            hitPoint, hitVector = hp, hv
             hitObject=object
 
     if tmin == np.inf:
-        hitObject = -1
-    return tmin, hitPoint, hitNormal, hitObject
+        hitObject=-1
+
+    return tmin, hitPoint, hitVector, hitObject
+
 
 def parseInput():
 
     tree = ET.parse(sys.argv[1])
     root = tree.getroot()
 
-    objSphereList=[]
-    objBoxList=[]
+    sphereList=[]
+    boxList=[]
     lightList=[]  
     shaderDictionary={} 
 
@@ -215,14 +212,14 @@ def parseInput():
         if c.find('viewNormal') != None:
             projNormal=np.array(c.findtext('projNormal').split()).astype(np.float)
         if c.find('projDistance') != None:
-            projDistance=float(c.findtext('projDistance'))
+            projDistance=np.array(c.findtext('projDistance').split()).astype(np.float)
         if c.find('viewWidth') != None:
-            viewWidth=float(c.findtext('viewWidth'))
+            viewWidth=np.array(c.findtext('viewWidth').split()).astype(np.float)
         if c.find('viewHeight') != None:
-            viewHeight=float(c.findtext('viewHeight'))
+            viewHeight=np.array(c.findtext('viewHeight').split()).astype(np.float)
         camera = Camera(viewPoint, viewDir, viewUp, projDistance, viewWidth, viewHeight, imgSize)
 
-    # get the shader
+    # get shader
     for c in root.findall('shader'):
         diffuseColor=np.array(c.findtext('diffuseColor').split()).astype(np.float)
         if c.get('type')=='Lambertian':
@@ -232,7 +229,7 @@ def parseInput():
             exponent=np.array(c.findtext('exponent').split()).astype(np.float)
             shaderDictionary[c.get('name')]=Shader(diffuseColor, specularColor, exponent)  
 
-    # get the Object surface
+    # get surface object
     for c in root.findall('surface'):
         objShaderTag=c.find('shader')
         objShaderName=objShaderTag.get('ref')
@@ -242,66 +239,63 @@ def parseInput():
             objCenter=np.array(c.findtext('center').split()).astype(np.float)
             objRadius=np.array(c.findtext('radius').split()).astype(np.float)
             tmpObj=Sphere(objCenter, objRadius, objShader)
-            objSphereList += [tmpObj]
+            sphereList += [tmpObj]
 
         if c.get('type')=='Box':
             objMinPt=np.array(c.findtext('minPt').split()).astype(np.float)
             objMaxPt=np.array(c.findtext('maxPt').split()).astype(np.float)
             tmpObj=Box(objMinPt, objMaxPt, objShader)
-            objBoxList += [tmpObj]
+            boxList += [tmpObj]
 
-    # get the light
+    # get light
     for c in root.findall('light'):
         lightPosition=np.array(c.findtext('position').split()).astype(np.float)
         lightIntensity=np.array(c.findtext('intensity').split()).astype(np.float)
         tmpLight=Light(lightPosition, lightIntensity)
         lightList+= [tmpLight]
 
-    return camera, objSphereList, objBoxList, imgSize, lightList
+    return camera, sphereList, boxList, imgSize, lightList
 
-def main():
 
-    # parse input file
-    camera, objSphereList, objBoxList, imgSize, lightList = parseInput()
+def main(): 
+    #parse the input xml files
+    camera, sphereList, boxList, imgSize, lightList = parseInput()
 
     # Create an empty image
     channels=3
     img = np.zeros((imgSize[1], imgSize[0], channels), dtype=np.uint8)
     img[:,:]=0
-    
-    # make image
-    for i in np.arange(imgSize[1]):
-        for j in np.arange(imgSize[0]):
-            imgColor = np.array([0, 0, 0])
-            # get ray
-            rayPoint, rayVec = camera.getRay(i, j)
-            # find intersect
-            tmin, hitPoint, hitNormal, hitObject = checkIntersect(rayPoint, rayVec, objSphereList, objBoxList)
-            # case: there is intersection
-            if tmin < np.inf:
-                # handle shadows
-                imgColor = np.array([0., 0., 0.])
-                normal = normalize(hitNormal)
-                V = normalize(-rayVec)
-                for light in lightList:
-                    # Lambertian
-                    lightVec = normalize(light.position - hitPoint)
-                    # Phong
-                    h = normalize(lightVec + V)
-                    t_shadow, hp_s, hn_s, obj_s = checkIntersect(hitPoint, lightVec, objSphereList, objBoxList)
-                    if t_shadow == np.inf:
-                        imgColor += hitObject.shader.diffuseColor * light.intensity * max([0, lightVec@normal])
-                        imgColor += hitObject.shader.specularColor * light.intensity * (max([0, h@normal])**hitObject.shader.exponent)
-            imgColor = 255 * imgColor
-            for idx in range(3):
-                if(imgColor[idx] > 255):
-                    imgColor[idx] = 255
-            img[i][j] = imgColor
 
-    rawimg = Image.fromarray(img, 'RGB')
-    #rawimg.save('out.png')
+    for i in np.arange(imgSize[1]):
+        for j in np.arange(imgSize[0]): 
+            # get ray
+            rayPoint, rayVec = camera.getRay(i,j)
+            imgColor=np.array([0,0,0])
+            tmin, hitPoint, hitVector, hitObject = checkIntersect(rayPoint, rayVec, sphereList, boxList)
+            # case: intersection
+            if tmin < np.inf:
+                normal = normalize(hitVector)
+                V = normalize(-rayVec)
+                imgColor=np.array([0.,0.,0.])
+                for light in lightList:
+                    #for Lamberiant
+                    I = normalize(light.position-hitPoint)
+                    #for Phong
+                    h = normalize(I + V)
+                    tShadow, hitShadow, objShadow = checkIntersect(hitPoint, I, sphereList, boxList)
+                    if tShadow==np.inf:
+                        imgColor+=hitObject.shader.diffuseColor*light.intensity*max([0,I@normal])
+                        imgColor+=hitObject.shader.specularColor*light.intensity*(max([0,h@normal])**hitObject.shader.exponent)
+        
+            imgColor=255*imgColor
+            for idx in range(3):
+                if imgColor[idx]>255:
+                    imgColor[idx]=255
+            img[i][j]=imgColor
+
+    rawimg = Image.fromarray(scene.img, 'RGB')
+    rawimg.save('out.png')
     #rawimg.save(sys.argv[1]+'.png')
-    rawimg.save(sys.argv[1] + '_test.png')
     
 if __name__=="__main__":
     main()
