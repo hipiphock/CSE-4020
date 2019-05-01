@@ -11,10 +11,10 @@ gIndexArray = None
 
 def createVertexAndIndexArrayIndexed():
     varr = np.array([
-        ( 0. , 0. , 0. ),
-        ( 1.5 , 0. , 0. ),  # x
-        ( 0. , 1.5 , 0. ),  # y
-        ( 0. , 0. , 1.5 ),  # z
+        ( 0. , 0. , 0. ),   # O, 0
+        ( 1.5 , 0. , 0. ),  # x, 1
+        ( 0. , 1.5 , 0. ),  # y, 2
+        ( 0. , 0. , 1.5 ),  # z, 3
         ], 'float32')
     iarr = np.array([
         (0, 1, 2),
@@ -32,7 +32,7 @@ def render():
 
     glLoadIdentity()
     gluPerspective(45, 1, 1, 10)
-    gluLookAt(5*np.sin(gCamAng), gCamHeight, 5*np.cos(gCamHeight), 0,0,0, 0,1,0)
+    gluLookAt(5*np.sin(gCamAng), gCamHeight, 5*np.cos(gCamAng), 0,0,0, 0,1,0)
 
     drawFrame()
     glColor3ub(255, 255, 255)
@@ -83,11 +83,10 @@ def main():
     if not window:
         glfw.terminate()
         return
-    
-    gVertexArrayIndexed, gIndexArray = createVertexAndIndexArrayIndexed()
-
     glfw.make_context_current(window)
     glfw.set_key_callback(window, key_callback)
+    
+    gVertexArrayIndexed, gIndexArray = createVertexAndIndexArrayIndexed()
     
     while not glfw.window_should_close(window):
         glfw.poll_events()
