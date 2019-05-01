@@ -77,7 +77,7 @@ def drawFrame():
 def main():
     if not glfw.init():
         return
-    window = glfw.create_window(480,480,'2016025423-lab6-1', None,None)
+    window = glfw.create_window(480,480,'2016025423-5-1', None,None)
     if not window:
         glfw.terminate()
         return
