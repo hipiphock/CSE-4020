@@ -221,7 +221,6 @@ def render():
     # glMultMatrixf(M.T)
 
     # ZXZ Euler angles
-    t = glfw.get_time()
     M = np.identity(4)
     Rz1 = np.array([[np.cos(alpha), -np.sin(alpha), 0],
                    [np.sin(alpha), np.cos(alpha), 0],
