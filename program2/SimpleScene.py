@@ -52,7 +52,7 @@ savedLoc = [
 
 # added for initial time settings
 startTime = 0
-timeInitialized = 0
+timeInitialized = False
 
 class PickInfo:
     def __init__(self, cursorRayT, cowPickPosition, cowPickConfiguration, cowPickPositionLocal):
@@ -240,7 +240,7 @@ def drawFloor():
     drawFrame(5);		    # Draw x, y, and z axis.
 
 def display():
-    global cameraIndex, cow2wld, savedCount, savedLoc
+    global cameraIndex, cow2wld, savedCount, savedLoc, startTime, timeInitialized
     glClearColor(0.8, 0.9, 0.9, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	    # Clear the screen
     # set viewing transformation.
@@ -254,21 +254,46 @@ def display():
     #animTime=glfw.get_time()-animStartTime;
     #you need to modify both the translation and rotation parts of the cow2wld matrix.
 
-    # draw cows if the cows are 
+    # draw cow at saved locations if savedCount is between 0 and 5
     if 0 <= savedCount and savedCount <= 5:
         for i in range(savedCount):
-            print(savedLoc[i])
             drawCow(savedLoc[i], cursorOnCowBoundingBox)
 
     # do the rollercoaster job
-    elif savedCount == 5:
+    elif savedCount == 6:
         if not timeInitialized:
             startTime = glfw.get_time()
-            timeInitialized = 1
+            timeInitialized = True
         t = glfw.get_time() - startTime
-        splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
-        drawCow(splinepos, 1)
-    
+        if 0 <= t and t < 1:
+            splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
+            drawCow(splinepos, True)
+        elif 1 <= t and t < 2:
+            t -= 1
+            splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
+            drawCow(splinepos, True)
+        elif 2 <= t and t < 3:
+            t -= 2
+            splinepos = getParam(savedLoc[1], savedLoc[2], savedLoc[3], savedLoc[4], t)
+            drawCow(splinepos, True)
+        elif 3 <= t and t < 4:
+            t -= 3
+            splinepos = getParam(savedLoc[2], savedLoc[3], savedLoc[4], savedLoc[5], t)
+            drawCow(splinepos, True)
+        elif 4 <= t and t < 5:
+            t -= 4
+            splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
+            drawCow(splinepos, True)
+        elif 5 <= t and t < 6:
+            t -= 5
+            splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
+            drawCow(splinepos, True)
+        else:
+            # TODO: end the rotation
+            cow2wld = savedLoc[0]
+            timeInitialized = False
+            savedCount = -1
+
     drawCow(cow2wld, cursorOnCowBoundingBox);		    # Draw cow.
 
     glFlush();
@@ -353,39 +378,36 @@ def initialize(window):
         cam2wld.append(np.linalg.inv(wld2cam[i]))
     cameraIndex = 0;
 
-def onMouseButton(window,button, state, mods):
+def onMouseButton(window, button, state, mods):
     global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld
     GLFW_DOWN=1;
     GLFW_UP=0;
     x, y=glfw.get_cursor_pos(window)
     if button == glfw.MOUSE_BUTTON_LEFT:
         if state == GLFW_DOWN:
-            # case: left click during the cow rotation
-            # stop the movement and
-            # initialize the cow's location on click
-            if savedCount == 5:
-                cow2wld = savedLoc[0]
-            elif not cursorOnCowBoundingBox:
-                isDrag = 0
-            else:
-                isDrag=V_DRAG;
+            # isDrag = V_DRAG
+            isDrag = H_DRAG
             print( "Left mouse down-click at %d %d\n" % (x,y))
             # start vertical dragging
         elif state == GLFW_UP and isDrag!=0:
-            isDrag=H_DRAG;
-            if 0 <= savedCount and savedCount < 5 and cursorOnCowBoundingBox:
+            isDrag = H_DRAG
+            if 0 <= savedCount and savedCount <= 5 and cursorOnCowBoundingBox:
                 # save point
                 savedLoc[savedCount] = cow2wld
                 savedCount += 1
-            elif savedCount == 5 and cursorOnCowBoundingBox:
-                savedCount = -1
+            elif savedCount == 6 and cursorOnCowBoundingBox:
+                # case: six points are all saved
+                # TODO: must handle for the rotation
+                pass
             elif savedCount == -1 and cursorOnCowBoundingBox:
+                # case: initial click done.
+                # initial click does not count or save the point
                 savedCount += 1
             elif not cursorOnCowBoundingBox:
                 isDrag = 0
+            #print( "Left mouse up\n")
             print("saved count: ")
             print(savedCount)
-            print( "Left mouse up\n");
             # start horizontal dragging using mouse-move events.
     elif button == glfw.MOUSE_BUTTON_RIGHT:
         if state == GLFW_DOWN:
@@ -394,24 +416,24 @@ def onMouseButton(window,button, state, mods):
 def onMouseDrag(window, x, y):
     global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld
     if isDrag: 
-        print( "in drag mode %d\n"% isDrag);
+        #print( "in drag mode %d\n"% isDrag);
         if isDrag==V_DRAG:
             # vertical dragging
             # TODO:
             # create a dragging plane perpendicular to the ray direction, 
             # and test intersection with the screen ray.
-            print('vdrag')
+            #print('vdrag')
 
             # if it is on the cow box
             if cursorOnCowBoundingBox:
                 ray = screenCoordToRay(window, x, y)
-                pp = pickInfo;
-                p = Plane(np.array((0, 0, 1)), pp.cowPickPosition)
+                pp = pickInfo
+                p = Plane(np.array((1, 0, 0)), pp.cowPickPosition)
                 c = ray.intersectsPlane(p)
 
                 currentPos = ray.getPoint(c[1])
-                print(pp.cowPickPosition, currentPos)
-                print(pp.cowPickConfiguration, cow2wld)
+                #print(pp.cowPickPosition, currentPos)
+                #print(pp.cowPickConfiguration, cow2wld)
                 
                 T=np.eye(4)
                 yDifference = currentPos - pp.cowPickPosition
@@ -429,8 +451,8 @@ def onMouseDrag(window, x, y):
                 c=ray.intersectsPlane(p);
 
                 currentPos=ray.getPoint(c[1])
-                print(pp.cowPickPosition, currentPos)
-                print(pp.cowPickConfiguration, cow2wld)
+                #print(pp.cowPickPosition, currentPos)
+                #print(pp.cowPickConfiguration, cow2wld)
                 
                 T=np.eye(4)
                 setTranslation(T, currentPos-pp.cowPickPosition)
