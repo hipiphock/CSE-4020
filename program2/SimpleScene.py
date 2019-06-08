@@ -33,6 +33,27 @@ V_DRAG=2
 # dragging state
 isDrag=0
 
+# added to save six locations
+savedCount = -1
+savedCow = np.array([
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0]
+])
+savedLoc = [
+    savedCow,
+    savedCow,
+    savedCow,
+    savedCow,
+    savedCow,
+    savedCow
+]
+
+# added for initial time settings
+startTime = 0
+timeInitialized = 0
+
 class PickInfo:
     def __init__(self, cursorRayT, cowPickPosition, cowPickConfiguration, cowPickPositionLocal):
         self.cursorRayT=cursorRayT
@@ -89,17 +110,17 @@ def drawOtherCamera():
     global cameraIndex,wld2cam, camModel
     for i in range(len(wld2cam)):
         if (i != cameraIndex):
-            glPushMatrix();												# Push the current matrix on GL to stack. The matrix is wld2cam[cameraIndex].matrix().
+            glPushMatrix();					# Push the current matrix on GL to stack. The matrix is wld2cam[cameraIndex].matrix().
             glMultMatrixd(cam2wld[i].T)
-            drawFrame(5);											# Draw x, y, and z axis.
+            drawFrame(5);					# Draw x, y, and z axis.
             frontColor = [0.2, 0.2, 0.2, 1.0];
             glEnable(GL_LIGHTING);									
-            glMaterialfv(GL_FRONT, GL_AMBIENT, frontColor);			# Set ambient property frontColor.
-            glMaterialfv(GL_FRONT, GL_DIFFUSE, frontColor);			# Set diffuse property frontColor.
-            glScaled(0.5,0.5,0.5);										# Reduce camera size by 1/2.
-            glTranslated(1.1,1.1,0.0);									# Translate it (1.1, 1.1, 0.0).
+            glMaterialfv(GL_FRONT, GL_AMBIENT, frontColor);	# Set ambient property frontColor.
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, frontColor);	# Set diffuse property frontColor.
+            glScaled(0.5,0.5,0.5);				# Reduce camera size by 1/2.
+            glTranslated(1.1,1.1,0.0);				# Translate it (1.1, 1.1, 0.0).
             camModel.render()
-            glPopMatrix();												# Call the matrix on stack. wld2cam[cameraIndex].matrix() in here.
+            glPopMatrix();					# Call the matrix on stack. wld2cam[cameraIndex].matrix() in here.
 
 def drawFrame(leng):
     glDisable(GL_LIGHTING);	# Lighting is not needed for drawing axis.
@@ -115,6 +136,11 @@ def drawFrame(leng):
     glVertex3d(0,0,leng);	# Draw line(z-axis) from (0,0,0) - (0, 0, len).
     glEnd();			# End drawing lines.
 
+# function that gives the position of spline
+def getParam(p0, p1, p2, p3, t):
+    retval = 0.5 * ((2.0*p1) + (-p0+p2)*t + (2.0*p0-5.0*p1+4.0*p2-p3)*t**2 + (-p0+3.0*p1-3.0*p2+p3)*t**3)
+    return retval
+
 #*********************************************************************************
 # Draw 'cow' object.
 #*********************************************************************************/
@@ -126,7 +152,7 @@ def drawCow(_cow2wld, drawBB):
     # (Project2 hint) If you change the value of the cow2wld matrix or the current matrix, cow would rotate or move.
     glMultMatrixd(_cow2wld.T)
 
-    drawFrame(5);										# Draw x, y, and z axis.
+    drawFrame(5);						# Draw x, y, and z axis.
     frontColor = [0.8, 0.2, 0.9, 1.0];
     glEnable(GL_LIGHTING);
     glMaterialfv(GL_FRONT, GL_AMBIENT, frontColor);		# Set ambient property frontColor.
@@ -201,34 +227,49 @@ def drawFloor():
     nrep=4
     glBegin(GL_POLYGON);
     glTexCoord2d(0,0);
-    glVertex3d(-12,-0.1,-12);		# Texture's (0,0) is bound to (-12,-0.1,-12).
+    glVertex3d(-12,-0.1,-12);	    # Texture's (0,0) is bound to (-12,-0.1,-12).
     glTexCoord2d(nrep,0);
-    glVertex3d( 12,-0.1,-12);		# Texture's (1,0) is bound to (12,-0.1,-12).
+    glVertex3d( 12,-0.1,-12);	    # Texture's (1,0) is bound to (12,-0.1,-12).
     glTexCoord2d(nrep,nrep);
-    glVertex3d( 12,-0.1, 12);		# Texture's (1,1) is bound to (12,-0.1,12).
+    glVertex3d( 12,-0.1, 12);	    # Texture's (1,1) is bound to (12,-0.1,12).
     glTexCoord2d(0,nrep);
-    glVertex3d(-12,-0.1, 12);		# Texture's (0,1) is bound to (-12,-0.1,12).
+    glVertex3d(-12,-0.1, 12);	    # Texture's (0,1) is bound to (-12,-0.1,12).
     glEnd();
 
     glDisable(GL_TEXTURE_2D);	
-    drawFrame(5);				# Draw x, y, and z axis.
+    drawFrame(5);		    # Draw x, y, and z axis.
 
 def display():
-    global cameraIndex, cow2wld
+    global cameraIndex, cow2wld, savedCount, savedLoc
     glClearColor(0.8, 0.9, 0.9, 1.0)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);				# Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	    # Clear the screen
     # set viewing transformation.
     glLoadMatrixd(wld2cam[cameraIndex].T)
 
-    drawOtherCamera();													# Locate the camera's position, and draw all of them.
-    drawFloor();													# Draw floor.
+    drawOtherCamera();					    # Locate the camera's position, and draw all of them.
+    drawFloor();					    # Draw floor.
 
     # TODO: 
     # update cow2wld here to animate the cow.
     #animTime=glfw.get_time()-animStartTime;
     #you need to modify both the translation and rotation parts of the cow2wld matrix.
 
-    drawCow(cow2wld, cursorOnCowBoundingBox);														# Draw cow.
+    # draw cows if the cows are 
+    if 0 <= savedCount and savedCount <= 5:
+        for i in range(savedCount):
+            print(savedLoc[i])
+            drawCow(savedLoc[i], cursorOnCowBoundingBox)
+
+    # do the rollercoaster job
+    elif savedCount == 5:
+        if not timeInitialized:
+            startTime = glfw.get_time()
+            timeInitialized = 1
+        t = glfw.get_time() - startTime
+        splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
+        drawCow(splinepos, 1)
+    
+    drawCow(cow2wld, cursorOnCowBoundingBox);		    # Draw cow.
 
     glFlush();
 
@@ -286,12 +327,12 @@ def initialize(window):
     cowModel=OBJ.OBJrenderer("cow.obj")
 
     # initialize cow2wld matrix
-    glPushMatrix();		        # Push the current matrix of GL into stack.
-    glLoadIdentity();		        # Set the GL matrix Identity matrix.
+    glPushMatrix();		                # Push the current matrix of GL into stack.
+    glLoadIdentity();		                # Set the GL matrix Identity matrix.
     glTranslated(0,-cowModel.bbmin[1],-8);	# Set the location of cow.
-    glRotated(-90, 0, 1, 0);		# Set the direction of cow. These information are stored in the matrix of GL.
+    glRotated(-90, 0, 1, 0);		        # Set the direction of cow. These information are stored in the matrix of GL.
     cow2wld=glGetDoublev(GL_MODELVIEW_MATRIX).T # convert column-major to row-major 
-    glPopMatrix();			# Pop the matrix on stack to GL.
+    glPopMatrix();			        # Pop the matrix on stack to GL.
 
 
     # intialize camera model.
@@ -304,29 +345,46 @@ def initialize(window):
     for i in range(cameraCount):
         # 'c' points the coordinate of i-th camera.
         c = cameras[i];										
-        glPushMatrix();													# Push the current matrix of GL into stack.
-        glLoadIdentity();												# Set the GL matrix Identity matrix.
-        gluLookAt(c[0],c[1],c[2], c[3],c[4],c[5], c[6],c[7],c[8]);		# Setting the coordinate of camera.
+        glPushMatrix();							# Push the current matrix of GL into stack.
+        glLoadIdentity();						# Set the GL matrix Identity matrix.
+        gluLookAt(c[0],c[1],c[2], c[3],c[4],c[5], c[6],c[7],c[8]);	# Setting the coordinate of camera.
         wld2cam.append(glGetDoublev(GL_MODELVIEW_MATRIX).T)
-        glPopMatrix();													# Transfer the matrix that was pushed the stack to GL.
+        glPopMatrix();							# Transfer the matrix that was pushed the stack to GL.
         cam2wld.append(np.linalg.inv(wld2cam[i]))
     cameraIndex = 0;
 
 def onMouseButton(window,button, state, mods):
-    global isDrag, V_DRAG, H_DRAG
+    global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld
     GLFW_DOWN=1;
     GLFW_UP=0;
     x, y=glfw.get_cursor_pos(window)
     if button == glfw.MOUSE_BUTTON_LEFT:
         if state == GLFW_DOWN:
-            if isDrag==H_DRAG:
-                isDrag=0
+            # case: left click during the cow rotation
+            # stop the movement and
+            # initialize the cow's location on click
+            if savedCount == 5:
+                cow2wld = savedLoc[0]
+            elif not cursorOnCowBoundingBox:
+                isDrag = 0
             else:
                 isDrag=V_DRAG;
             print( "Left mouse down-click at %d %d\n" % (x,y))
             # start vertical dragging
         elif state == GLFW_UP and isDrag!=0:
             isDrag=H_DRAG;
+            if 0 <= savedCount and savedCount < 5 and cursorOnCowBoundingBox:
+                # save point
+                savedLoc[savedCount] = cow2wld
+                savedCount += 1
+            elif savedCount == 5 and cursorOnCowBoundingBox:
+                savedCount = -1
+            elif savedCount == -1 and cursorOnCowBoundingBox:
+                savedCount += 1
+            elif not cursorOnCowBoundingBox:
+                isDrag = 0
+            print("saved count: ")
+            print(savedCount)
             print( "Left mouse up\n");
             # start horizontal dragging using mouse-move events.
     elif button == glfw.MOUSE_BUTTON_RIGHT:
@@ -337,13 +395,30 @@ def onMouseDrag(window, x, y):
     global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld
     if isDrag: 
         print( "in drag mode %d\n"% isDrag);
-        if  isDrag==V_DRAG:
+        if isDrag==V_DRAG:
             # vertical dragging
             # TODO:
             # create a dragging plane perpendicular to the ray direction, 
             # and test intersection with the screen ray.
             print('vdrag')
 
+            # if it is on the cow box
+            if cursorOnCowBoundingBox:
+                ray = screenCoordToRay(window, x, y)
+                pp = pickInfo;
+                p = Plane(np.array((0, 0, 1)), pp.cowPickPosition)
+                c = ray.intersectsPlane(p)
+
+                currentPos = ray.getPoint(c[1])
+                print(pp.cowPickPosition, currentPos)
+                print(pp.cowPickConfiguration, cow2wld)
+                
+                T=np.eye(4)
+                yDifference = currentPos - pp.cowPickPosition
+                yDifference[0] = 0
+                yDifference[2] = 0
+                setTranslation(T, yDifference)
+                cow2wld=T@pp.cowPickConfiguration;
         else:
             # horizontal dragging
             # Hint: read carefully the following block to implement vertical dragging.
@@ -356,7 +431,6 @@ def onMouseDrag(window, x, y):
                 currentPos=ray.getPoint(c[1])
                 print(pp.cowPickPosition, currentPos)
                 print(pp.cowPickConfiguration, cow2wld)
-
                 
                 T=np.eye(4)
                 setTranslation(T, currentPos-pp.cowPickPosition)
