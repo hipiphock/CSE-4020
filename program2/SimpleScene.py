@@ -265,27 +265,28 @@ def display():
             startTime = glfw.get_time()
             timeInitialized = True
         t = glfw.get_time() - startTime
-        if 0 <= t and t < 1:
+        if (0<=t and t<1) or (6<=t and t<7) or (12<=t and t<13):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
             drawCow(splinepos, True)
-        elif 1 <= t and t < 2:
-            t -= 1
+        elif (1<=t and t<2) or (7<=t and t<8) or (13<=t and t<14):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
             drawCow(splinepos, True)
-        elif 2 <= t and t < 3:
-            t -= 2
+        elif (2<=t and t<3) or (8<=t and t<9) or (14<=t and t<15):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[1], savedLoc[2], savedLoc[3], savedLoc[4], t)
             drawCow(splinepos, True)
-        elif 3 <= t and t < 4:
-            t -= 3
+        elif (3<=t and t<4) or (9<=t and t<10) or (15<=t and t<16):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[2], savedLoc[3], savedLoc[4], savedLoc[5], t)
             drawCow(splinepos, True)
-        elif 4 <= t and t < 5:
-            t -= 4
+        elif (4<=t and t<5) or (10<=t and t<11) or (16<=t and t<17):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
             drawCow(splinepos, True)
-        elif 5 <= t and t < 6:
-            t -= 5
+        elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
+            t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
             drawCow(splinepos, True)
         else:
