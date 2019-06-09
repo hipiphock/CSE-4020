@@ -178,6 +178,34 @@ def getRotation(prevPos, nextPos):
         [0., 0., 1.]
     ])
     cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
+
+def getRotation2(derivative):
+    global cow2wld
+
+    roll = 0
+    pitch = np.arcsin(derivative[1])
+    yaw = np.arctan2(derivative[2], derivative[0])
+
+    if yaw == 0:
+        pitch = -pitch
+
+    Rx = np.array([
+        [1., 0., 0.],
+        [0., np.cos(pitch), -np.sin(pitch)],
+        [0., np.sin(pitch), np.cos(pitch)]
+    ])
+    Ry = np.array([
+        [np.cos(yaw), 0., np.sin(yaw)],
+        [0., 1., 0.],
+        [-np.sin(yaw), 0., np.cos(yaw)]
+    ])
+    Rz = np.array([
+        [np.cos(roll), -np.sin(roll), 0.],
+        [np.sin(roll), np.cos(roll), 0.],
+        [0., 0., 1.]
+    ])
+    cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
+
 #********************************************************
 
 #*********************************************************************************
@@ -313,6 +341,7 @@ def display():
             splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
             # rotate the cow
             getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # getRotation2(getTranslation(getDerivate(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)))
             # move the cow
             setTranslation(cow2wld, getTranslation(splinepos))
             drawCow(cow2wld, False)
@@ -347,7 +376,7 @@ def display():
             getRotation(getTranslation(cow2wld), getTranslation(splinepos))
             # move the cow
             setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(splinepos, False)
+            drawCow(cow2wld, False)
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
@@ -449,7 +478,12 @@ def initialize(window):
     cameraIndex = 0;
 
 def onMouseButton(window, button, state, mods):
-    global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld
+    global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld, rollercoasting
+    
+    # disable during rollercoasting
+    if rollercoasting:
+        return
+
     GLFW_DOWN=1;
     GLFW_UP=0;
     x, y=glfw.get_cursor_pos(window)
@@ -476,15 +510,18 @@ def onMouseButton(window, button, state, mods):
             elif not cursorOnCowBoundingBox:
                 isDrag = 0
             #print( "Left mouse up\n")
-            print("saved count: ")
-            print(savedCount)
             # start horizontal dragging using mouse-move events.
     elif button == glfw.MOUSE_BUTTON_RIGHT:
         if state == GLFW_DOWN:
             print( "Right mouse click at (%d, %d)\n"%(x,y) );
 
 def onMouseDrag(window, x, y):
-    global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld
+    global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld, rollercoasting
+
+    # disable during rollercoasting
+    if rollercoasting:
+        return
+
     if isDrag: 
         #print( "in drag mode %d\n"% isDrag);
         if isDrag==V_DRAG:
@@ -503,13 +540,11 @@ def onMouseDrag(window, x, y):
                 c = ray.intersectsPlane(p)
 
                 currentPos = ray.getPoint(c[1])
+                currentPos[2] = getTranslation(cow2wld)[2]
                 #print(pp.cowPickPosition, currentPos)
                 #print(pp.cowPickConfiguration, cow2wld)
                 
                 T=np.eye(4)
-                #yDifference = currentPos - pp.cowPickPosition
-                #yDifference[0] = 0
-                #yDifference[2] = 0
                 #setTranslation(T, yDifference)
                 setTranslation(T, currentPos - getTranslation(cow2wld))
                 #cow2wld=T@pp.cowPickConfiguration;
@@ -520,7 +555,8 @@ def onMouseDrag(window, x, y):
             if cursorOnCowBoundingBox:
                 ray=screenCoordToRay(window, x, y);
                 pp=pickInfo;
-                p=Plane(np.array((0,1,0)), pp.cowPickPosition);
+                #p=Plane(np.array((0,1,0)), pp.cowPickPosition);
+                p = Plane(np.array((0, 1, 0)), getTranslation(cow2wld))
                 c=ray.intersectsPlane(p);
 
                 currentPos=ray.getPoint(c[1])
@@ -528,8 +564,10 @@ def onMouseDrag(window, x, y):
                 #print(pp.cowPickConfiguration, cow2wld)
                 
                 T=np.eye(4)
-                setTranslation(T, currentPos-pp.cowPickPosition)
-                cow2wld=T@pp.cowPickConfiguration;
+                #setTranslation(T, currentPos-pp.cowPickPosition)
+                setTranslation(T, currentPos - getTranslation(cow2wld))
+                #cow2wld=T@pp.cowPickConfiguration;
+                cow2wld = T @ cow2wld
     else:
         ray=screenCoordToRay(window, x, y)
 
