@@ -179,6 +179,7 @@ def getRotation(prevPos, nextPos):
     ])
     cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
 
+# function for derivative
 def getRotation2(derivative):
     global cow2wld
 
@@ -341,7 +342,7 @@ def display():
             splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
             # rotate the cow
             getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # getRotation2(getTranslation(getDerivate(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)))
+            # derivative = getDerivate(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
             # move the cow
             setTranslation(cow2wld, getTranslation(splinepos))
             drawCow(cow2wld, False)
