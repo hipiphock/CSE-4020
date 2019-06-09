@@ -362,6 +362,9 @@ def display():
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
+            if np.array_equal(getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], 0), savedLoc[5]):
+                print("dosmas")
+
 
         else:
             # end the rotation
