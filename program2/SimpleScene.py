@@ -335,66 +335,48 @@ def display():
             startTime = glfw.get_time()
             timeInitialized = True
         t = glfw.get_time() - startTime
-        
-        # move the cow based on the track
+
+        # get the spline position
+        splinepos = initialCow
         if (0<=t and t<1) or (6<=t and t<7) or (12<=t and t<13):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # derivative = getDerivate(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
         elif (1<=t and t<2) or (7<=t and t<8) or (13<=t and t<14):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
         elif (2<=t and t<3) or (8<=t and t<9) or (14<=t and t<15):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[1], savedLoc[2], savedLoc[3], savedLoc[4], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
         elif (3<=t and t<4) or (9<=t and t<10) or (15<=t and t<16):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[2], savedLoc[3], savedLoc[4], savedLoc[5], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
         elif (4<=t and t<5) or (10<=t and t<11) or (16<=t and t<17):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
+        # strange here
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
-            # rotate the cow
-            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
-            # move the cow
-            setTranslation(cow2wld, getTranslation(splinepos))
-            drawCow(cow2wld, False)
+
         else:
             # end the rotation
             cow2wld = savedLoc[0]
             timeInitialized = False
             savedCount = -1
             rollercoasting = False
+        # rotate the cow
+        getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+        # move the cow
+        setTranslation(cow2wld, getTranslation(splinepos))
+        drawCow(cow2wld, False)
 
     if not rollercoasting:
-        drawCow(cow2wld, cursorOnCowBoundingBox);		    # Draw cow.
+        drawCow(cow2wld, cursorOnCowBoundingBox);	    # Draw cow.
 
     glFlush();
 
@@ -491,7 +473,6 @@ def onMouseButton(window, button, state, mods):
     if button == glfw.MOUSE_BUTTON_LEFT:
         if state == GLFW_DOWN:
             isDrag = V_DRAG
-            # isDrag = H_DRAG
             print( "Left mouse down-click at %d %d\n" % (x,y))
             # start vertical dragging
         elif state == GLFW_UP and isDrag!=0:
@@ -499,6 +480,8 @@ def onMouseButton(window, button, state, mods):
             if 0 <= savedCount and savedCount <= 5 and cursorOnCowBoundingBox:
                 # save point
                 savedLoc[savedCount] = cow2wld
+                print(savedCount)
+                print(savedLoc[savedCount])
                 savedCount += 1
             elif savedCount == 6 and cursorOnCowBoundingBox:
                 # case: six points are all saved
@@ -510,7 +493,7 @@ def onMouseButton(window, button, state, mods):
                 savedCount += 1
             elif not cursorOnCowBoundingBox:
                 isDrag = 0
-            #print( "Left mouse up\n")
+            print( "Left mouse up\n")
             # start horizontal dragging using mouse-move events.
     elif button == glfw.MOUSE_BUTTON_RIGHT:
         if state == GLFW_DOWN:
