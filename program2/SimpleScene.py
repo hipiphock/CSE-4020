@@ -35,24 +35,25 @@ isDrag=0
 
 # added to save six locations
 savedCount = -1
-savedCow = np.array([
+initialCow = np.array([
     [0, 0, 0, 0],
     [0, 0, 0, 0],
     [0, 0, 0, 0],
     [0, 0, 0, 0]
 ])
 savedLoc = [
-    savedCow,
-    savedCow,
-    savedCow,
-    savedCow,
-    savedCow,
-    savedCow
+    initialCow,
+    initialCow,
+    initialCow,
+    initialCow,
+    initialCow,
+    initialCow
 ]
 
 # added for initial time settings
 startTime = 0
 timeInitialized = False
+rollercoasting = False
 
 class PickInfo:
     def __init__(self, cursorRayT, cowPickPosition, cowPickConfiguration, cowPickPositionLocal):
@@ -136,10 +137,48 @@ def drawFrame(leng):
     glVertex3d(0,0,leng);	# Draw line(z-axis) from (0,0,0) - (0, 0, len).
     glEnd();			# End drawing lines.
 
+#*******************************************************
+# dosmas is delicious
+#*******************************************************
 # function that gives the position of spline
 def getParam(p0, p1, p2, p3, t):
-    retval = 0.5 * ((2.0*p1) + (-p0+p2)*t + (2.0*p0-5.0*p1+4.0*p2-p3)*t**2 + (-p0+3.0*p1-3.0*p2+p3)*t**3)
+    retval = 0.5*((2.0*p1)+(-p0+p2)*t+(2.0*p0-5.0*p1+4.0*p2-p3)*t**2+(-p0+3.0*p1-3.0*p2+p3)*t**3)
     return retval
+
+# function that gives rotation matrix of current position
+def getDerivate(p0, p1, p2, p3, t):
+    retval = 0.5*((p2-p0) + (2.0*p0-5.0*p1+4.0*p2-p3)*2.0*t + (-p0+3.0*p1-3.0*p2+p3)*3.0*t**2)
+    return retval
+
+# function that rotates cow
+def getRotation(prevPos, nextPos):
+    global cow2wld
+    direction = normalize(nextPos - prevPos)
+
+    roll = 0
+    pitch = np.arcsin(direction[1])
+    yaw = np.arctan2(direction[2], direction[0])
+
+    if yaw == 0:
+        pitch = -pitch
+
+    Rx = np.array([
+        [1., 0., 0.],
+        [0., np.cos(pitch), -np.sin(pitch)],
+        [0., np.sin(pitch), np.cos(pitch)]
+    ])
+    Ry = np.array([
+        [np.cos(yaw), 0., np.sin(yaw)],
+        [0., 1., 0.],
+        [-np.sin(yaw), 0., np.cos(yaw)]
+    ])
+    Rz = np.array([
+        [np.cos(roll), -np.sin(roll), 0.],
+        [np.sin(roll), np.cos(roll), 0.],
+        [0., 0., 1.]
+    ])
+    cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
+#********************************************************
 
 #*********************************************************************************
 # Draw 'cow' object.
@@ -240,7 +279,7 @@ def drawFloor():
     drawFrame(5);		    # Draw x, y, and z axis.
 
 def display():
-    global cameraIndex, cow2wld, savedCount, savedLoc, startTime, timeInitialized
+    global cameraIndex, cow2wld, savedCount, savedLoc, startTime, timeInitialized, rollercoasting
     glClearColor(0.8, 0.9, 0.9, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	    # Clear the screen
     # set viewing transformation.
@@ -259,43 +298,73 @@ def display():
         for i in range(savedCount):
             drawCow(savedLoc[i], cursorOnCowBoundingBox)
 
-    # do the rollercoaster job
+    # if all six points are saved, rotate the cow for three times
     elif savedCount == 6:
+        rollercoasting = True
+        # initialize time before start
         if not timeInitialized:
             startTime = glfw.get_time()
             timeInitialized = True
         t = glfw.get_time() - startTime
+        
+        # move the cow based on the track
         if (0<=t and t<1) or (6<=t and t<7) or (12<=t and t<13):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[5], savedLoc[0], savedLoc[1], savedLoc[2], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(cow2wld, False)
         elif (1<=t and t<2) or (7<=t and t<8) or (13<=t and t<14):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[0], savedLoc[1], savedLoc[2], savedLoc[3], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(cow2wld, False)
         elif (2<=t and t<3) or (8<=t and t<9) or (14<=t and t<15):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[1], savedLoc[2], savedLoc[3], savedLoc[4], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(cow2wld, False)
         elif (3<=t and t<4) or (9<=t and t<10) or (15<=t and t<16):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[2], savedLoc[3], savedLoc[4], savedLoc[5], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(cow2wld, False)
         elif (4<=t and t<5) or (10<=t and t<11) or (16<=t and t<17):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(splinepos, False)
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
-            drawCow(splinepos, True)
+            # rotate the cow
+            getRotation(getTranslation(cow2wld), getTranslation(splinepos))
+            # move the cow
+            setTranslation(cow2wld, getTranslation(splinepos))
+            drawCow(cow2wld, False)
         else:
-            # TODO: end the rotation
+            # end the rotation
             cow2wld = savedLoc[0]
             timeInitialized = False
             savedCount = -1
+            rollercoasting = False
 
-    drawCow(cow2wld, cursorOnCowBoundingBox);		    # Draw cow.
+    if not rollercoasting:
+        drawCow(cow2wld, cursorOnCowBoundingBox);		    # Draw cow.
 
     glFlush();
 
@@ -386,8 +455,8 @@ def onMouseButton(window, button, state, mods):
     x, y=glfw.get_cursor_pos(window)
     if button == glfw.MOUSE_BUTTON_LEFT:
         if state == GLFW_DOWN:
-            # isDrag = V_DRAG
-            isDrag = H_DRAG
+            isDrag = V_DRAG
+            # isDrag = H_DRAG
             print( "Left mouse down-click at %d %d\n" % (x,y))
             # start vertical dragging
         elif state == GLFW_UP and isDrag!=0:
@@ -429,7 +498,8 @@ def onMouseDrag(window, x, y):
             if cursorOnCowBoundingBox:
                 ray = screenCoordToRay(window, x, y)
                 pp = pickInfo
-                p = Plane(np.array((1, 0, 0)), pp.cowPickPosition)
+                # p = Plane(np.array((1, 0, 0)), pp.cowPickPosition)
+                p = Plane(np.array((1, 0, 0)), getTranslation(cow2wld))
                 c = ray.intersectsPlane(p)
 
                 currentPos = ray.getPoint(c[1])
@@ -437,11 +507,13 @@ def onMouseDrag(window, x, y):
                 #print(pp.cowPickConfiguration, cow2wld)
                 
                 T=np.eye(4)
-                yDifference = currentPos - pp.cowPickPosition
-                yDifference[0] = 0
-                yDifference[2] = 0
-                setTranslation(T, yDifference)
-                cow2wld=T@pp.cowPickConfiguration;
+                #yDifference = currentPos - pp.cowPickPosition
+                #yDifference[0] = 0
+                #yDifference[2] = 0
+                #setTranslation(T, yDifference)
+                setTranslation(T, currentPos - getTranslation(cow2wld))
+                #cow2wld=T@pp.cowPickConfiguration;
+                cow2wld = T @ cow2wld
         else:
             # horizontal dragging
             # Hint: read carefully the following block to implement vertical dragging.
