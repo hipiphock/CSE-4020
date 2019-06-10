@@ -10,6 +10,7 @@ import ctypes
 from PIL.Image import open
 import OBJ
 from Ray import *
+import copy
 
 
 # global variables
@@ -34,7 +35,7 @@ V_DRAG=2
 isDrag=0
 
 # added to save six locations
-# if savedCount turns six, the cow starts rollercoasting
+# if savedCount turns six, start rollercoasting
 savedCount = -1
 initialCow = np.array([
     [0, 0, 0, 0],
@@ -54,7 +55,6 @@ savedLoc = [
 # added for initial time settings
 startTime = 0
 timeInitialized = False
-rollercoasting = False
 rollerCow = initialCow
 
 class PickInfo:
@@ -153,8 +153,8 @@ def getDerivate(p0, p1, p2, p3, t):
     return retval
 
 # function that rotates cow
-def getRotation(prevPos, nextPos):
-    global cow2wld, rollerCow
+def getRotation(original, prevPos, nextPos):
+    retval = original
     direction = normalize(nextPos - prevPos)
 
     roll = 0
@@ -179,7 +179,8 @@ def getRotation(prevPos, nextPos):
         [np.sin(roll), np.cos(roll), 0.],
         [0., 0., 1.]
     ])
-    rollerCow[0:3, 0:3] = (Ry @ Rx @ Rz).T
+    retval[0:3, 0:3] = (Ry @ Rx @ Rz).T
+    return retval
 
 # function for derivative
 # not actually used.
@@ -311,7 +312,7 @@ def drawFloor():
     drawFrame(5);		    # Draw x, y, and z axis.
 
 def display():
-    global cameraIndex, cow2wld, savedCount, savedLoc, startTime, timeInitialized, rollercoasting, rollerCow
+    global cameraIndex, cow2wld, savedCount, savedLoc, startTime, timeInitialized, rollerCow
     glClearColor(0.8, 0.9, 0.9, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	    # Clear the screen
     # set viewing transformation.
@@ -333,11 +334,11 @@ def display():
     # if all six points are saved, rotate the cow for three times
     elif savedCount == 6:
         # initializing job should be done
-        rollercoasting = True
         # initialize time before start
         if not timeInitialized:
             startTime = glfw.get_time()
             timeInitialized = True
+            rollerCow = savedLoc[0]
         t = glfw.get_time() - startTime
 
         # get the spline position
@@ -361,36 +362,25 @@ def display():
         elif (4<=t and t<5) or (10<=t and t<11) or (16<=t and t<17):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
-            tmp = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], 0)
-            if np.array_equal(tmp, savedLoc[4]):
-                print("saved location 4")
-                print(savedLoc[4])
-                print("spline position for savedLoc[4]")
-                print(tmp)
 
-        # strange here
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
-            tmp = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], 0)
-            if np.array_equal(tmp, savedLoc[5]):
-                print("saved location 5")
-                print(savedLoc[5])
-                print("spline position for savedLoc[5]")
-                print(tmp)
+
         else:
             # end the rotation
             cow2wld = savedLoc[0]
             timeInitialized = False
             savedCount = -1
-            rollercoasting = False
+            glFlush()
+            return
         # rotate the cow
-        getRotation(getTranslation(rollerCow), getTranslation(splinepos))
+        rollerCow = getRotation(rollerCow, getTranslation(rollerCow), getTranslation(splinepos))
         # move the cow
         setTranslation(rollerCow, getTranslation(splinepos))
         drawCow(rollerCow, False)
 
-    if not rollercoasting:
+    if savedCount != 6:
         drawCow(cow2wld, cursorOnCowBoundingBox);	    # Draw cow.
 
     glFlush();
@@ -476,10 +466,10 @@ def initialize(window):
     cameraIndex = 0;
 
 def onMouseButton(window, button, state, mods):
-    global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld, rollercoasting
+    global isDrag, V_DRAG, H_DRAG, pickInfo, savedCount, savedLoc, cow2wld
     
     # disable during rollercoasting
-    if rollercoasting or savedCount == 6:
+    if savedCount == 6:
         return
 
     GLFW_DOWN=1;
@@ -492,16 +482,15 @@ def onMouseButton(window, button, state, mods):
             # start vertical dragging
         elif state == GLFW_UP and isDrag!=0:
             isDrag = H_DRAG
+            # TODO: handle concurrency
             if 0 <= savedCount and savedCount <= 5 and cursorOnCowBoundingBox:
                 # save point
                 savedLoc[savedCount] = cow2wld
                 print(savedCount)
                 print(savedLoc[savedCount])
                 savedCount += 1
-            elif savedCount == 6 and cursorOnCowBoundingBox:
-                # case: six points are all saved
-                # TODO: must handle for the rotation
-                rollercoasting = True
+                if savedCount == 6:
+                    isDrag = 0
             elif savedCount == -1 and cursorOnCowBoundingBox:
                 # case: initial click done.
                 # initial click does not count or save the point
@@ -515,10 +504,10 @@ def onMouseButton(window, button, state, mods):
             print( "Right mouse click at (%d, %d)\n"%(x,y) );
 
 def onMouseDrag(window, x, y):
-    global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld, rollercoasting
+    global isDrag,cursorOnCowBoundingBox, pickInfo, cow2wld
 
     # disable during rollercoasting
-    if rollercoasting or savedCount == 6:
+    if savedCount == 6:
         return
 
     if isDrag: 
