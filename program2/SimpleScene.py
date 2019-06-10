@@ -357,15 +357,23 @@ def display():
         elif (4<=t and t<5) or (10<=t and t<11) or (16<=t and t<17):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], t)
+            tmp = getParam(savedLoc[3], savedLoc[4], savedLoc[5], savedLoc[0], 0)
+            if np.array_equal(tmp, savedLoc[4]):
+                print("saved location 4")
+                print(savedLoc[4])
+                print("spline position for savedLoc[4]")
+                print(tmp)
 
         # strange here
         elif (5<=t and t<6) or (11<=t and t<12) or (17<=t and t<18):
             t = float(t) - int(t)
             splinepos = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], t)
-            if np.array_equal(getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], 0), savedLoc[5]):
-                print("dosmas")
-
-
+            tmp = getParam(savedLoc[4], savedLoc[5], savedLoc[0], savedLoc[1], 0)
+            if np.array_equal(tmp, savedLoc[5]):
+                print("saved location 5")
+                print(savedLoc[5])
+                print("spline position for savedLoc[5]")
+                print(tmp)
         else:
             # end the rotation
             cow2wld = savedLoc[0]
@@ -489,7 +497,7 @@ def onMouseButton(window, button, state, mods):
             elif savedCount == 6 and cursorOnCowBoundingBox:
                 # case: six points are all saved
                 # TODO: must handle for the rotation
-                pass
+                rollercoasting = True
             elif savedCount == -1 and cursorOnCowBoundingBox:
                 # case: initial click done.
                 # initial click does not count or save the point

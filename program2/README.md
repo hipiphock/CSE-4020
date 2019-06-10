@@ -1,3 +1,1 @@
-# Program 2
-
-this program rotates
+# Program 2 - Cow Rollercoaster
