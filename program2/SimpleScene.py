@@ -159,7 +159,7 @@ def getCowDir(prevPos, nextPos):
     pitch = np.arcsin(direction[1])
     yaw = np.arctan2(direction[2], direction[0])
 
-    if yaw == 0:
+    if yaw < 0:
         pitch = -pitch
 
     Rx = np.array([
