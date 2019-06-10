@@ -10,7 +10,7 @@ import ctypes
 from PIL.Image import open
 import OBJ
 from Ray import *
-import copy
+import threading
 
 
 # global variables
@@ -211,6 +211,7 @@ def getRotation2(derivative):
     ])
     cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
 
+
 #********************************************************
 
 #*********************************************************************************
@@ -327,12 +328,14 @@ def display():
     #you need to modify both the translation and rotation parts of the cow2wld matrix.
 
     # draw cow at saved locations if savedCount is between 0 and 5
-    if 0 <= savedCount and savedCount <= 5:
-        for i in range(savedCount):
-            drawCow(savedLoc[i], cursorOnCowBoundingBox)
+    # if 0 <= savedCount and savedCount <= 5:
+    #    for i in range(savedCount):
+    #        drawCow(savedLoc[i], cursorOnCowBoundingBox)
+    for i in range(5):
+        drawCow(savedLoc[i], True)
 
     # if all six points are saved, rotate the cow for three times
-    elif savedCount == 6:
+    if savedCount == 6:
         # initializing job should be done
         # initialize time before start
         if not timeInitialized:
