@@ -10,8 +10,7 @@ import ctypes
 from PIL.Image import open
 import OBJ
 from Ray import *
-import threading
-
+import math
 
 # global variables
 wld2cam=[]
@@ -43,19 +42,18 @@ initialCow = np.array([
     [0, 0, 0, 0],
     [0, 0, 0, 0]
 ])
-savedLoc = [
-    initialCow,
-    initialCow,
-    initialCow,
-    initialCow,
-    initialCow,
-    initialCow
-]
+
+savedLoc = []
 
 # added for initial time settings
 startTime = 0
 timeInitialized = False
-rollerCow = initialCow
+rollerCow = np.array([
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0]
+])
 
 class PickInfo:
     def __init__(self, cursorRayT, cowPickPosition, cowPickConfiguration, cowPickPositionLocal):
@@ -152,9 +150,9 @@ def getDerivate(p0, p1, p2, p3, t):
     retval = 0.5*((p2-p0) + (2.0*p0-5.0*p1+4.0*p2-p3)*2.0*t + (-p0+3.0*p1-3.0*p2+p3)*3.0*t**2)
     return retval
 
-# function that rotates cow
-def getRotation(original, prevPos, nextPos):
-    retval = original
+# function that rotates cow to heading direction
+def getCowDir(prevPos, nextPos):
+    global rollerCow
     direction = normalize(nextPos - prevPos)
 
     roll = 0
@@ -179,38 +177,7 @@ def getRotation(original, prevPos, nextPos):
         [np.sin(roll), np.cos(roll), 0.],
         [0., 0., 1.]
     ])
-    retval[0:3, 0:3] = (Ry @ Rx @ Rz).T
-    return retval
-
-# function for derivative
-# not actually used.
-def getRotation2(derivative):
-    global cow2wld
-
-    roll = 0
-    pitch = np.arcsin(derivative[1])
-    yaw = np.arctan2(derivative[2], derivative[0])
-
-    if yaw == 0:
-        pitch = -pitch
-
-    Rx = np.array([
-        [1., 0., 0.],
-        [0., np.cos(pitch), -np.sin(pitch)],
-        [0., np.sin(pitch), np.cos(pitch)]
-    ])
-    Ry = np.array([
-        [np.cos(yaw), 0., np.sin(yaw)],
-        [0., 1., 0.],
-        [-np.sin(yaw), 0., np.cos(yaw)]
-    ])
-    Rz = np.array([
-        [np.cos(roll), -np.sin(roll), 0.],
-        [np.sin(roll), np.cos(roll), 0.],
-        [0., 0., 1.]
-    ])
-    cow2wld[0:3, 0:3] = (Ry @ Rx @ Rz).T
-
+    rollerCow[0:3, 0:3] = (Ry @ Rx @ Rz).T
 
 #********************************************************
 
@@ -328,20 +295,18 @@ def display():
     #you need to modify both the translation and rotation parts of the cow2wld matrix.
 
     # draw cow at saved locations if savedCount is between 0 and 5
-    # if 0 <= savedCount and savedCount <= 5:
-    #    for i in range(savedCount):
-    #        drawCow(savedLoc[i], cursorOnCowBoundingBox)
-    for i in range(5):
-        drawCow(savedLoc[i], True)
+    if 0 <= savedCount and savedCount <= 5:
+        for v in savedLoc:
+            drawCow(v, True)
 
     # if all six points are saved, rotate the cow for three times
-    if savedCount == 6:
+    elif savedCount == 6:
         # initializing job should be done
         # initialize time before start
         if not timeInitialized:
             startTime = glfw.get_time()
             timeInitialized = True
-            rollerCow = savedLoc[0]
+            rollerCow = savedLoc[0].copy()
         t = glfw.get_time() - startTime
 
         # get the spline position
@@ -372,13 +337,14 @@ def display():
 
         else:
             # end the rotation
-            cow2wld = savedLoc[0]
+            cow2wld = rollerCow
             timeInitialized = False
             savedCount = -1
+            savedLoc.clear()
             glFlush()
             return
-        # rotate the cow
-        rollerCow = getRotation(rollerCow, getTranslation(rollerCow), getTranslation(splinepos))
+        # rotate the cow to heading direction
+        getCowDir(getTranslation(rollerCow), getTranslation(splinepos))
         # move the cow
         setTranslation(rollerCow, getTranslation(splinepos))
         drawCow(rollerCow, False)
@@ -488,10 +454,11 @@ def onMouseButton(window, button, state, mods):
             # TODO: handle concurrency
             if 0 <= savedCount and savedCount <= 5 and cursorOnCowBoundingBox:
                 # save point
-                savedLoc[savedCount] = cow2wld
-                print(savedCount)
-                print(savedLoc[savedCount])
+                # savedLoc[savedCount] = cow2wld.copy()
+                # print(savedCount)
+                # print(savedLoc[savedCount])
                 savedCount += 1
+                savedLoc.append(cow2wld.copy())
                 if savedCount == 6:
                     isDrag = 0
             elif savedCount == -1 and cursorOnCowBoundingBox:
