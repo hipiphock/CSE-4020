@@ -301,7 +301,6 @@ def display():
 
     # if all six points are saved, rotate the cow for three times
     elif savedCount == 6:
-        # initializing job should be done
         # initialize time before start
         if not timeInitialized:
             startTime = glfw.get_time()
@@ -454,15 +453,11 @@ def onMouseButton(window, button, state, mods):
             # TODO: handle concurrency
             if 0 <= savedCount and savedCount <= 5 and cursorOnCowBoundingBox:
                 # save point
-                # savedLoc[savedCount] = cow2wld.copy()
-                # print(savedCount)
-                # print(savedLoc[savedCount])
                 savedCount += 1
                 savedLoc.append(cow2wld.copy())
                 if savedCount == 6:
                     isDrag = 0
             elif savedCount == -1 and cursorOnCowBoundingBox:
-                # case: initial click done.
                 # initial click does not count or save the point
                 savedCount += 1
             elif not cursorOnCowBoundingBox:
